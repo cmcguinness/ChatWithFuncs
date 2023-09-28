@@ -1,2 +1,4 @@
 
-.idea/ChatWithFuncs.iml
+.idea/
+__pycache__/
+
