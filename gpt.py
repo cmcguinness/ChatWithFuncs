@@ -4,8 +4,9 @@ import os
 import stockinfo
 
 class GPTlib():
-    def __init__(self, history_max=16):
+    def __init__(self, debug=False, history_max=16):
         openai.api_key = os.getenv('OPENAI_API_KEY')
+        self.debug = debug
         self.history = []
         self.history_max = history_max
         self.system_prompt = """
@@ -82,10 +83,11 @@ class GPTlib():
 
     def call_gpt_handle_functions(self, inbound_message):
 
-        if inbound_message[-1]["role"] == "user":
-            print(f'--To-GPT--> {inbound_message[-1]["content"]}')
-        else:
-            print(f'--To-GPT--> {inbound_message[-1]["name"]} returned {inbound_message[-1]["content"]}')
+        if self.debug:
+            if inbound_message[-1]["role"] == "user":
+                print(f'{" "*13}--To-GPT--> {inbound_message[-1]["content"]}')
+            else:
+                print(f'{" "*13}--To-GPT--> {inbound_message[-1]["name"]} returned {inbound_message[-1]["content"]}')
 
         #   Step 1: call GPT ...
         response = self.call_gpt(inbound_message)
@@ -94,7 +96,8 @@ class GPTlib():
         message = response["choices"][0]["message"]
 
         if message.get("function_call") is None:
-            print(f'<---Back--- {str(message["content"])}')
+            if self.debug:
+                print(f'{" "*13}<---Back--- {str(message["content"])}')
             return response
 
         # Step 3: Handle a function call
@@ -110,7 +113,8 @@ class GPTlib():
                 }
 
         fargs = message["function_call"]["arguments"].replace("\n","")
-        print(f'<---Back--- {message["function_call"]["name"]}({fargs})')
+        if self.debug:
+            print(f'{" "*13}<---Back--- {message["function_call"]["name"]}({fargs})')
 
         # Save it in our history as well as current working structure for later
         self.history.append(short_resp)
@@ -120,7 +124,10 @@ class GPTlib():
         results = self.execute_function_call(message)
 
         # Generate the entry in the history for the response
-        func_results = {"role": "function", "name": message["function_call"]["name"], "content": results}
+        if results is None:
+            func_results = {"role": "function", "name": message["function_call"]["name"], "content": "NO-RESULTS-FOUND"}
+        else:
+            func_results = {"role": "function", "name": message["function_call"]["name"], "content": results}
 
         # Add the response of the function call to the history
         self.history.append(func_results)
